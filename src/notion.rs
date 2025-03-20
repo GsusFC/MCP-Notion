@@ -202,6 +202,121 @@ impl NotionClient {
         Ok(results)
     }
 
+    // Extraer información relevante de una página
+    fn extract_page_info(&self, page: &Value) -> Option<Value> {
+        let properties = page.get("properties")?;
+        
+        let brand_name = properties.get("Brand Name")?
+            .get("title")?
+            .as_array()?
+            .first()?
+            .get("plain_text")?
+            .as_str()?;
+        
+        let services = properties.get("Services")?
+            .get("multi_select")?
+            .as_array()?
+            .iter()
+            .filter_map(|opt| opt.get("name").and_then(|n| n.as_str()))
+            .collect::<Vec<_>>();
+        
+        let description = properties.get("Description")
+            .and_then(|d| d.get("rich_text"))
+            .and_then(|rt| rt.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|t| t.get("plain_text"))
+            .and_then(|t| t.as_str())
+            .unwrap_or("");
+        
+        let website = properties.get("Website")
+            .and_then(|w| w.get("url"))
+            .and_then(|u| u.as_str())
+            .unwrap_or("");
+
+        let tagline = properties.get("Tagline")
+            .and_then(|t| t.get("rich_text"))
+            .and_then(|rt| rt.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|t| t.get("plain_text"))
+            .and_then(|t| t.as_str())
+            .unwrap_or("");
+
+        let slug = properties.get("Slug")
+            .and_then(|s| s.get("rich_text"))
+            .and_then(|rt| rt.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|t| t.get("plain_text"))
+            .and_then(|t| t.as_str())
+            .unwrap_or("");
+
+        // Extraer URLs de imágenes
+        let mut images = Vec::new();
+        for i in 1..=10 {
+            let key = format!("Image [{}]", i);
+            if let Some(files) = properties.get(&key)
+                .and_then(|f| f.get("files"))
+                .and_then(|f| f.as_array()) {
+                for file in files {
+                    if let Some(url) = file.get("url").and_then(|u| u.as_str()) {
+                        images.push(json!({
+                            "id": i,
+                            "url": url
+                        }));
+                    } else if let Some(url) = file.get("file").and_then(|f| f.get("url")).and_then(|u| u.as_str()) {
+                        images.push(json!({
+                            "id": i,
+                            "url": url
+                        }));
+                    }
+                }
+            }
+        }
+
+        // Extraer imágenes especiales
+        let special_images = [
+            ("hero_image", "Hero Image"),
+            ("cover", "Cover"),
+            ("avatar", "Avatar"),
+            ("square_image_1", "Image [7.1] square image"),
+            ("square_image_2", "Image [7.2] square image")
+        ];
+
+        let mut media = json!({"images": images});
+        if let Some(obj) = media.as_object_mut() {
+            for (key, prop_name) in special_images.iter() {
+                if let Some(files) = properties.get(prop_name)
+                    .and_then(|f| f.get("files"))
+                    .and_then(|f| f.as_array()) {
+                    if let Some(file) = files.first() {
+                        if let Some(url) = file.get("url").and_then(|u| u.as_str()) {
+                            obj.insert(key.to_string(), json!({ "url": url }));
+                        } else if let Some(url) = file.get("file").and_then(|f| f.get("url")).and_then(|u| u.as_str()) {
+                            obj.insert(key.to_string(), json!({ "url": url }));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Extraer URLs de videos
+        let videos = json!({
+            "video_1": properties.get("Video 1").and_then(|v| v.get("url")).and_then(|u| u.as_str()),
+            "video_2": properties.get("Video 2").and_then(|v| v.get("url")).and_then(|u| u.as_str())
+        });
+        
+        Some(json!({
+            "id": page["id"].as_str()?,
+            "name": brand_name,
+            "services": services,
+            "description": description,
+            "website": website,
+            "tagline": tagline,
+            "slug": slug,
+            "media": media,
+            "videos": videos
+        }))
+    }
+    
     // Consultar una base de datos
     pub async fn query_database(&self, database_id: &str, filter: Option<Value>, limit: Option<u32>) -> NotionResult<Vec<Value>> {
         let limit = limit.unwrap_or(100);
@@ -243,7 +358,9 @@ impl NotionClient {
         
         let results = db_response["results"].as_array()
             .ok_or_else(|| NotionMcpError::JsonParse("No se encontró campo 'results'".to_string()))?
-            .clone();
+            .iter()
+            .filter_map(|page| self.extract_page_info(page))
+            .collect::<Vec<_>>();
         
         debug!("Consulta completada, {} resultados encontrados", results.len());
         Ok(results)

@@ -81,16 +81,50 @@ async fn handle_query_database(
         }))
     };
     
-    let filter = params.get("filter").cloned();
+    let mut filter_obj = json!({});
+    
+    // Manejar filtro de highlighted
+    if let Some(highlighted) = params.get("highlighted").and_then(|v| v.as_bool()) {
+        filter_obj = json!({
+            "property": "00. Highlighted",
+            "checkbox": {
+                "equals": highlighted
+            }
+        });
+    }
+    
+    // Manejar filtro de servicios
+    if let Some(services) = params.get("services").and_then(|v| v.as_array()) {
+        if !services.is_empty() {
+            filter_obj = json!({
+                "property": "Services",
+                "multi_select": {
+                    "contains": services[0]
+                }
+            });
+        }
+    }
+    
+    let filter = if filter_obj != json!({}) { Some(filter_obj) } else { None };
     let limit = params.get("limit")
         .and_then(|v| v.as_u64())
         .map(|v| v as u32);
     
+    debug!("Query params - database_id: {}, filter: {:?}, limit: {:?}", database_id, filter, limit);
+    
     match notion_client.query_database(database_id, filter, limit).await {
-        Ok(results) => web::Json(json!(results)),
-        Err(e) => web::Json(json!({
-            "error": e.to_string()
-        }))
+        Ok(results) => {
+            debug!("Query successful, {} results", results.len());
+            web::Json(json!({
+                "results": results
+            }))
+        },
+        Err(e) => {
+            error!("Query error: {}", e);
+            web::Json(json!({
+                "error": e.to_string()
+            }))
+        }
     }
 }
 
