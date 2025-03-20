@@ -30,9 +30,9 @@ pub struct NotionPageResponse {
 
 impl NotionClient {
     pub fn new(api_key: String) -> Self {
-        // Validar el formato de la API key
+        // Validate API key format
         if !api_key.starts_with("ntn_") && !api_key.starts_with("secret_") {
-            log::warn!("El formato de la API key de Notion no parece válido. Las claves actuales comienzan con 'ntn_'");
+            log::warn!("The Notion API key format doesn't seem valid. Current keys start with 'ntn_'");
         }
         
         Self {
@@ -41,9 +41,9 @@ impl NotionClient {
         }
     }
     
-    // Validar la conexión a Notion
+    // Validate Notion connection
     pub async fn validate_connection(&self) -> NotionResult<bool> {
-        debug!("Validando conexión a la API de Notion...");
+        debug!("Validating Notion API connection...");
         
         let response = self.client
             .post(&format!("{}/search", NOTION_BASE_URL))
@@ -55,8 +55,8 @@ impl NotionClient {
             .send()
             .await
             .map_err(|e| {
-                error!("Error al validar conexión con Notion: {}", e);
-                NotionMcpError::Authentication(format!("Error de conexión: {}", e))
+                error!("Error validating Notion connection: {}", e);
+                NotionMcpError::Authentication(format!("Connection error: {}", e))
             })?;
         
         if !response.status().is_success() {
@@ -64,19 +64,19 @@ impl NotionClient {
             let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
             
             if status.as_u16() == 401 {
-                error!("Error de autenticación: Token de API de Notion inválido");
-                return Err(NotionMcpError::Authentication("Token de API de Notion inválido o expirado".to_string()));
+                error!("Authentication error: Invalid Notion API token");
+                return Err(NotionMcpError::Authentication("Invalid or expired Notion API token".to_string()));
             }
             
-            error!("Error en respuesta de Notion ({}): {}", status, error_text);
-            return Err(NotionMcpError::NotionApi(format!("Error HTTP {}: {}", status, error_text)));
+            error!("Error in Notion response ({}): {}", status, error_text);
+            return Err(NotionMcpError::NotionApi(format!("HTTP Error {}: {}", status, error_text)));
         }
         
-        debug!("Conexión a Notion validada correctamente");
+        debug!("Notion connection validated successfully");
         Ok(true)
     }
 
-    // Headers para autenticación
+    // Authentication headers
     fn headers(&self) -> reqwest::header::HeaderMap {
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert(
@@ -94,10 +94,10 @@ impl NotionClient {
         headers
     }
 
-    // Búsqueda en Notion
+    // Search in Notion
     pub async fn search(&self, query: &str, limit: Option<u32>) -> NotionResult<NotionSearchResponse> {
         let limit = limit.unwrap_or(10);
-        debug!("Buscando en Notion: '{}' (límite: {})", query, limit);
+        debug!("Searching in Notion: '{}' (limit: {})", query, limit);
         
         let payload = json!({
             "query": query,
@@ -115,8 +115,8 @@ impl NotionClient {
             .send()
             .await
             .map_err(|e| {
-                error!("Error al hacer búsqueda en Notion: {}", e);
-                NotionMcpError::NotionApi(format!("Error en búsqueda: {}", e))
+                error!("Error searching in Notion: {}", e);
+                NotionMcpError::NotionApi(format!("Search error: {}", e))
             })?;
         
         if !response.status().is_success() {
@@ -132,13 +132,13 @@ impl NotionClient {
                 NotionMcpError::JsonParse(e.to_string())
             })?;
         
-        debug!("Búsqueda completada, {} resultados encontrados", search_response.results.len());
+        debug!("Search completed, {} results found", search_response.results.len());
         Ok(search_response)
     }
 
-    // Obtener una página por ID
+    // Get a page by ID
     pub async fn get_page(&self, page_id: &str) -> NotionResult<NotionPageResponse> {
-        debug!("Obteniendo página con ID: {}", page_id);
+        debug!("Getting page with ID: {}", page_id);
         
         let response = self.client
             .get(&format!("{}/pages/{}", NOTION_BASE_URL, page_id))
@@ -146,8 +146,8 @@ impl NotionClient {
             .send()
             .await
             .map_err(|e| {
-                error!("Error al obtener página: {}", e);
-                NotionMcpError::NotionApi(format!("Error al obtener página: {}", e))
+                error!("Error getting page: {}", e);
+                NotionMcpError::NotionApi(format!("Error getting page: {}", e))
             })?;
         
         if !response.status().is_success() {
@@ -163,13 +163,13 @@ impl NotionClient {
                 NotionMcpError::JsonParse(e.to_string())
             })?;
         
-        debug!("Página obtenida correctamente: {}", page.id);
+        debug!("Page retrieved successfully: {}", page.id);
         Ok(page)
     }
 
-    // Obtener contenido de una página
+    // Get page content
     pub async fn get_page_content(&self, page_id: &str) -> NotionResult<Vec<Value>> {
-        debug!("Obteniendo contenido de página con ID: {}", page_id);
+        debug!("Getting page content with ID: {}", page_id);
         
         let response = self.client
             .get(&format!("{}/blocks/{}/children", NOTION_BASE_URL, page_id))
@@ -177,8 +177,8 @@ impl NotionClient {
             .send()
             .await
             .map_err(|e| {
-                error!("Error al obtener contenido de página: {}", e);
-                NotionMcpError::NotionApi(format!("Error al obtener contenido: {}", e))
+                error!("Error getting page content: {}", e);
+                NotionMcpError::NotionApi(format!("Error getting content: {}", e))
             })?;
         
         if !response.status().is_success() {
@@ -198,7 +198,7 @@ impl NotionClient {
             .ok_or_else(|| NotionMcpError::JsonParse("No se encontró campo 'results'".to_string()))?
             .clone();
         
-        debug!("Contenido obtenido, {} bloques encontrados", results.len());
+        debug!("Content retrieved, {} blocks found", results.len());
         Ok(results)
     }
 

@@ -13,7 +13,7 @@ async fn handle_search(
     let query = match params.get("query").and_then(|v| v.as_str()) {
         Some(q) => q,
         None => return web::Json(json!({
-            "error": "Falta parámetro 'query'"
+            "error": "Missing 'query' parameter"
         }))
     };
     
@@ -77,7 +77,7 @@ async fn handle_query_database(
     let database_id = match params.get("database_id").and_then(|v| v.as_str()) {
         Some(id) => id,
         None => return web::Json(json!({
-            "error": "Falta parámetro 'database_id'"
+            "error": "Missing 'database_id' parameter"
         }))
     };
     
@@ -101,7 +101,7 @@ async fn handle_create_page(
     let parent_id = match params.get("parent_id").and_then(|v| v.as_str()) {
         Some(id) => id,
         None => return web::Json(json!({
-            "error": "Falta parámetro 'parent_id'"
+            "error": "Missing 'parent_id' parameter"
         }))
     };
     
@@ -151,7 +151,7 @@ async fn handle_update_page(
 }
 
 pub async fn run_notion_mcp_server(notion_client: Arc<NotionClient>, port: u16) -> std::io::Result<()> {
-    info!("Iniciando servidor HTTP en puerto {}", port);
+    info!("Starting HTTP server on port {}", port);
     
     let notion_client_data = web::Data::new(notion_client);
     

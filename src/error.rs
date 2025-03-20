@@ -2,31 +2,31 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum NotionMcpError {
-    #[error("Error en la API de Notion: {0}")]
+    #[error("Notion API error: {0}")]
     NotionApi(String),
     
-    #[error("Error de transporte: {0}")]
+    #[error("Transport error: {0}")]
     Transport(String),
     
-    #[error("Error interno del servidor: {0}")]
+    #[error("Internal server error: {0}")]
     Server(String),
     
-    #[error("Parámetros inválidos: {0}")]
+    #[error("Invalid parameters: {0}")]
     InvalidParams(String),
     
-    #[error("Método no encontrado: {0}")]
+    #[error("Method not found: {0}")]
     MethodNotFound(String),
     
-    #[error("Recurso no encontrado: {0}")]
+    #[error("Resource not found: {0}")]
     ResourceNotFound(String),
     
-    #[error("Error de autenticación: {0}")]
+    #[error("Authentication error: {0}")]
     Authentication(String),
     
-    #[error("Error al analizar JSON: {0}")]
+    #[error("JSON parsing error: {0}")]
     JsonParse(String),
     
-    #[error("Error desconocido: {0}")]
+    #[error("Unknown error: {0}")]
     Unknown(String),
 }
 
